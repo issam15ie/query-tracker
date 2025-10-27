@@ -31,8 +31,8 @@ async function initializeApp() {
 
 async function checkAuth() {
     try {
-        const response = await fetch('/api/auth/verify', {
-            headers: { 'Authorization': sessionId }
+        const response = await fetch('/api/auth/current-user', {
+            headers: { 'x-session-id': sessionId }
         });
         
         if (!response.ok) {
@@ -40,7 +40,7 @@ async function checkAuth() {
         }
         
         const data = await response.json();
-        showNavLinks(data.role, data.permissions);
+        showNavLinks(data.user.role, data.user.permissions);
     } catch (error) {
         localStorage.removeItem('sessionId');
         window.location.href = 'login.html';
@@ -92,7 +92,7 @@ function toggleSidebar() {
 async function loadPendingApprovals() {
     try {
         const response = await fetch('/api/approvals/pending', {
-            headers: { 'Authorization': sessionId }
+            headers: { 'x-session-id': sessionId }
         });
         
         if (!response.ok) throw new Error('Failed to load approvals');
@@ -142,7 +142,7 @@ function displayPendingApprovals(approvals) {
 async function loadStats() {
     try {
         const response = await fetch('/api/approvals/dashboard-stats', {
-            headers: { 'Authorization': sessionId }
+            headers: { 'x-session-id': sessionId }
         });
         
         if (!response.ok) throw new Error('Failed to load stats');
@@ -188,7 +188,7 @@ async function approveQuery() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': sessionId
+                'x-session-id': sessionId
             },
             body: JSON.stringify({ level: currentLevel, comments })
         });
@@ -215,7 +215,7 @@ async function rejectQuery() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': sessionId
+                'x-session-id': sessionId
             },
             body: JSON.stringify({ level: currentLevel, comments })
         });
@@ -237,7 +237,7 @@ async function rejectQuery() {
 async function loadNotifications() {
     try {
         const response = await fetch('/api/notifications', {
-            headers: { 'Authorization': sessionId }
+            headers: { 'x-session-id': sessionId }
         });
         
         if (!response.ok) throw new Error('Failed to load notifications');
@@ -247,7 +247,7 @@ async function loadNotifications() {
         
         // Load unread count
         const unreadResponse = await fetch('/api/notifications/unread-count', {
-            headers: { 'Authorization': sessionId }
+            headers: { 'x-session-id': sessionId }
         });
         const unreadData = await unreadResponse.json();
         
