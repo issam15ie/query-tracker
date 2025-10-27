@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approvals - Query Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .approval-container {
+            max-width: 1400px;
+            margin-left: 260px;
+            padding: 20px;
+            transition: margin-left 0.3s ease, max-width 0.3s ease;
+        }
+        .approval-container.sidebar-collapsed {
+            margin-left: 80px;
+            max-width: calc(100% - 100px);
+        }
+        .approval-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #334155;
+        }
+        .approval-header h1 {
+            margin: 0;
+            color: #f1f5f9;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f1f5f9;
+        }
+        .pending-approvals-list {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+        }
+        .approval-item {
+            background: #0f172a;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .approval-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .approval-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-approve {
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .approval-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+        }
+        .approval-modal-content {
+            background: #1e293b;
+            margin: 10% auto;
+            padding: 30px;
+            border: 1px solid #334155;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 10px;
+        }
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+        }
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="fas fa-database"></i> Query Tracker</h2>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="index.html" class="nav-item">
+                <i class="fas fa-plus-circle"></i>
+                <span>New Query</span>
+            </a>
+            <a href="index.html#all" class="nav-item">
+                <i class="fas fa-list"></i>
+                <span>All Queries</span>
+            </a>
+            <a href="dashboard.html" class="nav-item" id="dashboardLink" style="display: none;">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="approvals.html" class="nav-item active">
+                <i class="fas fa-check-circle"></i>
+                <span>Approvals</span>
+            </a>
+            <a href="profile.html" class="nav-item">
+                <i class="fas fa-user"></i>
+                <span>Profile</span>
+            </a>
+            <a href="admin.html" class="nav-item" id="adminLink" style="display: none;">
+                <i class="fas fa-cog"></i>
+                <span>Admin Panel</span>
+            </a>
+            <a href="#" class="nav-item" id="logoutLink">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="approval-container" id="approvalContainer">
+        <div class="approval-header">
+            <h1><i class="fas fa-check-circle"></i> Approval Dashboard</h1>
+            <div class="notification-bell" id="notificationBell">
+                <i class="fas fa-bell fa-lg" style="color: #f1f5f9; cursor: pointer;"></i>
+                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Pending Approvals</h3>
+                <div class="stat-value" id="pendingCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Approvals</h3>
+                <div class="stat-value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Avg Approval Time</h3>
+                <div class="stat-value" id="avgTime">0h</div>
+            </div>
+        </div>
+
+        <!-- Pending Approvals List -->
+        <div class="pending-approvals-list">
+            <h2>Pending Approvals</h2>
+            <div id="pendingApprovalsList">
+                <p style="text-align: center; color: #94a3b8; padding: 40px;">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Modal -->
+    <div id="approvalModal" class="approval-modal">
+        <div class="approval-modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2 id="modalTitle">Approve Query</h2>
+            <div id="modalQueryInfo"></div>
+            <textarea id="approvalComments" placeholder="Comments (optional)" rows="4" style="width: 100%; margin: 20px 0; padding: 10px; background: #0f172a; color: #f1f5f9; border: 1px solid #334155; border-radius: 5px;"></textarea>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="confirmApprovalBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Dropdown -->
+    <div id="notificationsDropdown" style="display: none; position: fixed; top: 60px; right: 20px; width: 350px; background: #1e293b; border: 1px solid #334155; border-radius: 10px; max-height: 500px; overflow-y: auto; z-index: 1000;">
+        <div style="padding: 15px; border-bottom: 1px solid #334155;">
+            <h3 style="margin: 0; color: #f1f5f9;">Notifications</h3>
+        </div>
+        <div id="notificationsList"></div>
+    </div>
+
+    <script src="approvals.js"></script>
+</body>
+</html>

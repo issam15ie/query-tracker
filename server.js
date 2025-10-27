@@ -301,6 +301,83 @@ db.serialize(() => {
       console.error('Error adding project column:', err);
     }
   });
+
+  // Create approval_levels table
+  db.run(`CREATE TABLE IF NOT EXISTS approval_levels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER,
+    level_number INTEGER NOT NULL,
+    approver_username TEXT NOT NULL,
+    timeout_hours INTEGER DEFAULT 48,
+    requires_all BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  )`, (err) => {
+    if (err) {
+      console.error('Error creating approval_levels table:', err);
+    } else {
+      console.log('Approval_levels table created/verified');
+    }
+  });
+
+  // Create query_approvals table
+  db.run(`CREATE TABLE IF NOT EXISTS query_approvals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_id INTEGER NOT NULL,
+    level INTEGER NOT NULL,
+    approver_username TEXT,
+    status TEXT DEFAULT 'pending',
+    comments TEXT,
+    approved_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE
+  )`, (err) => {
+    if (err) {
+      console.error('Error creating query_approvals table:', err);
+    } else {
+      console.log('Query_approvals table created/verified');
+    }
+  });
+
+  // Create notifications table
+  db.run(`CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    user_username TEXT,
+    type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    related_query_id INTEGER,
+    is_read BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (related_query_id) REFERENCES queries(id) ON DELETE CASCADE
+  )`, (err) => {
+    if (err) {
+      console.error('Error creating notifications table:', err);
+    } else {
+      console.log('Notifications table created/verified');
+    }
+  });
+
+  // Create notification_preferences table
+  db.run(`CREATE TABLE IF NOT EXISTS notification_preferences (
+    user_id INTEGER PRIMARY KEY,
+    email_enabled BOOLEAN DEFAULT 0,
+    query_submitted BOOLEAN DEFAULT 1,
+    query_approved BOOLEAN DEFAULT 1,
+    query_rejected BOOLEAN DEFAULT 1,
+    comment_added BOOLEAN DEFAULT 1,
+    status_changed BOOLEAN DEFAULT 1,
+    assigned BOOLEAN DEFAULT 1,
+    query_completed BOOLEAN DEFAULT 1,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`, (err) => {
+    if (err) {
+      console.error('Error creating notification_preferences table:', err);
+    } else {
+      console.log('Notification_preferences table created/verified');
+    }
+  });
 });
 
 // Helper functions for password hashing
@@ -1749,6 +1826,263 @@ app.delete('/api/admin/tables/:tableName/:id', requireAuth, (req, res) => {
       res.json({ 
         success: true,
         message: 'Record deleted successfully'
+      });
+    });
+  });
+});
+
+// ============= APPROVAL API ENDPOINTS =============
+
+// Create notification helper function
+function createNotification(userId, username, type, message, queryId) {
+  const sql = `INSERT INTO notifications (user_id, user_username, type, message, related_query_id) VALUES (?, ?, ?, ?, ?)`;
+  db.run(sql, [userId, username, type, message, queryId], (err) => {
+    if (err) {
+      console.error('Error creating notification:', err);
+    }
+  });
+}
+
+// Get user notification preferences
+app.get('/api/notification-preferences', requireAuth, (req, res) => {
+  const userId = req.user.id;
+  
+  db.get('SELECT * FROM notification_preferences WHERE user_id = ?', [userId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // Return defaults if no preferences exist
+    if (!row) {
+      return res.json({
+        email_enabled: false,
+        query_submitted: true,
+        query_approved: true,
+        query_rejected: true,
+        comment_added: true,
+        status_changed: true,
+        assigned: true,
+        query_completed: true
+      });
+    }
+    
+    res.json(row);
+  });
+});
+
+// Update notification preferences
+app.put('/api/notification-preferences', requireAuth, (req, res) => {
+  const userId = req.user.id;
+  const preferences = req.body;
+  
+  const sql = `INSERT OR REPLACE INTO notification_preferences 
+               (user_id, email_enabled, query_submitted, query_approved, query_rejected, 
+                comment_added, status_changed, assigned, query_completed)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  
+  db.run(sql, [
+    userId,
+    preferences.email_enabled ? 1 : 0,
+    preferences.query_submitted ? 1 : 0,
+    preferences.query_approved ? 1 : 0,
+    preferences.query_rejected ? 1 : 0,
+    preferences.comment_added ? 1 : 0,
+    preferences.status_changed ? 1 : 0,
+    preferences.assigned ? 1 : 0,
+    preferences.query_completed ? 1 : 0
+  ], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    res.json({ success: true, message: 'Notification preferences updated' });
+  });
+});
+
+// Get pending approvals
+app.get('/api/approvals/pending', requireAuth, (req, res) => {
+  const username = req.user.username;
+  
+  const sql = `
+    SELECT q.*, qa.level, qa.id as approval_id
+    FROM queries q
+    INNER JOIN query_approvals qa ON q.id = qa.query_id
+    WHERE qa.approver_username = ? AND qa.status = 'pending'
+    ORDER BY qa.created_at ASC
+  `;
+  
+  db.all(sql, [username], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Approve a query
+app.post('/api/approvals/:queryId/approve', requireAuth, (req, res) => {
+  const queryId = req.params.queryId;
+  const { level, comments } = req.body;
+  const approverUsername = req.user.username;
+  
+  // Update approval status
+  const sql = `UPDATE query_approvals 
+               SET status = 'approved', 
+                   approved_at = CURRENT_TIMESTAMP, 
+                   approver_username = ?,
+                   comments = ?
+               WHERE query_id = ? AND level = ? AND status = 'pending'`;
+  
+  db.run(sql, [approverUsername, comments, queryId, level], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Approval not found or already processed' });
+    }
+    
+    // Check if all approvals are complete
+    db.get('SELECT * FROM queries WHERE id = ?', [queryId], (err, query) => {
+      if (!err) {
+        // Create notification for query submitter
+        createNotification(query.user_id, query.user_name, 'approved', 
+          `Your query #${queryId} has been approved`, queryId);
+        
+        // Update query status if needed
+        db.run('UPDATE queries SET status = ? WHERE id = ? AND status = ?', 
+          ['Approved', queryId, 'Pending Approval']);
+      }
+    });
+    
+    res.json({ success: true, message: 'Query approved successfully' });
+  });
+});
+
+// Reject a query
+app.post('/api/approvals/:queryId/reject', requireAuth, (req, res) => {
+  const queryId = req.params.queryId;
+  const { level, comments } = req.body;
+  const approverUsername = req.user.username;
+  
+  // Update approval status
+  const sql = `UPDATE query_approvals 
+               SET status = 'rejected', 
+                   approved_at = CURRENT_TIMESTAMP, 
+                   approver_username = ?,
+                   comments = ?
+               WHERE query_id = ? AND level = ? AND status = 'pending'`;
+  
+  db.run(sql, [approverUsername, comments, queryId, level], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Approval not found or already processed' });
+    }
+    
+    // Update query status to rejected
+    db.get('SELECT * FROM queries WHERE id = ?', [queryId], (err, query) => {
+      if (!err && query) {
+        db.run('UPDATE queries SET status = ? WHERE id = ?', ['Rejected', queryId]);
+        
+        // Create notification for query submitter
+        createNotification(query.user_id, query.user_name, 'rejected', 
+          `Your query #${queryId} has been rejected. ${comments ? 'Reason: ' + comments : ''}`, queryId);
+      }
+    });
+    
+    res.json({ success: true, message: 'Query rejected' });
+  });
+});
+
+// Get approval history for a query
+app.get('/api/queries/:queryId/approvals', requireAuth, (req, res) => {
+  const queryId = req.params.queryId;
+  
+  const sql = `SELECT * FROM query_approvals WHERE query_id = ? ORDER BY level ASC, created_at ASC`;
+  
+  db.all(sql, [queryId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Get user's notifications
+app.get('/api/notifications', requireAuth, (req, res) => {
+  const userId = req.user.id;
+  const { limit = 50 } = req.query;
+  
+  const sql = `SELECT * FROM notifications 
+               WHERE user_id = ? 
+               ORDER BY created_at DESC 
+               LIMIT ?`;
+  
+  db.all(sql, [userId, parseInt(limit)], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Mark notification as read
+app.put('/api/notifications/:id/read', requireAuth, (req, res) => {
+  const notificationId = req.params.id;
+  const userId = req.user.id;
+  
+  db.run('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?', 
+    [notificationId, userId], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Get unread notification count
+app.get('/api/notifications/unread-count', requireAuth, (req, res) => {
+  const userId = req.user.id;
+  
+  db.get('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0', 
+    [userId], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ count: row.count });
+  });
+});
+
+// Get approval dashboard stats (admin only)
+app.get('/api/approvals/dashboard-stats', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  
+  const stats = {};
+  
+  // Count pending approvals
+  db.get(`SELECT COUNT(DISTINCT query_id) as count 
+          FROM query_approvals 
+          WHERE status = 'pending'`, (err, row) => {
+    stats.pending = row.count;
+    
+    // Count approvals by status
+    db.all(`SELECT status, COUNT(*) as count 
+            FROM query_approvals 
+            GROUP BY status`, (err, rows) => {
+      stats.byStatus = rows;
+      
+      // Average approval time
+      db.get(`SELECT AVG(julianday(approved_at) - julianday(created_at)) * 24 as avg_hours
+              FROM query_approvals 
+              WHERE approved_at IS NOT NULL`, (err, row) => {
+        stats.avgApprovalTime = row.avg_hours ? row.avg_hours.toFixed(2) : null;
+        
+        res.json(stats);
       });
     });
   });
