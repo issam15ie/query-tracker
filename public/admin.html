@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Database Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .admin-container {
+            max-width: 1600px;
+            margin-left: 260px;
+            padding: 20px;
+            transition: margin-left 0.3s ease, max-width 0.3s ease;
+        }
+        .admin-container.sidebar-collapsed {
+            margin-left: 80px;
+            max-width: calc(100% - 100px);
+        }
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #334155;
+        }
+        .admin-header h1 {
+            margin: 0;
+            color: #f1f5f9;
+        }
+        .table-selector {
+            margin-bottom: 20px;
+        }
+        .table-selector select {
+            width: 300px;
+            padding: 10px;
+            background: #1e293b;
+            color: #f1f5f9;
+            border: 1px solid #475569;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        .data-table th {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-weight: 600;
+        }
+        .data-table td {
+            color: #cbd5e1;
+        }
+        .data-table tr:hover {
+            background: #334155;
+        }
+        .btn-edit, .btn-delete {
+            padding: 5px 10px;
+            margin: 0 3px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-edit {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-delete {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-add {
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .modal-content {
+            background-color: #1e293b;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #f1f5f9;
+            font-weight: 600;
+        }
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            background: #0f172a;
+            color: #f1f5f9;
+            border: 1px solid #475569;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="fas fa-database"></i> Query Tracker</h2>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="index.html"><i class="fas fa-home"></i> New Query</a>
+            <a href="index.html#all"><i class="fas fa-list"></i> All Queries</a>
+            <a href="dashboard.html"><i class="fas fa-chart-bar"></i> Dashboard</a>
+            <a href="profile.html"><i class="fas fa-user"></i> Profile</a>
+            <a href="#" class="active"><i class="fas fa-cog"></i> Admin</a>
+            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </nav>
+    </div>
+
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1><i class="fas fa-cog"></i> Database Management</h1>
+            <div id="userInfo"></div>
+        </div>
+
+        <div class="table-selector">
+            <label for="tableSelect" style="color: #f1f5f9; margin-right: 10px;">Select Table:</label>
+            <select id="tableSelect">
+                <option value="">Loading tables...</option>
+            </select>
+        </div>
+
+        <button class="btn-add" onclick="showAddModal()"><i class="fas fa-plus"></i> Add New Record</button>
+        
+        <div id="dataContainer">
+            <p style="color: #94a3b8;">Select a table to view and manage its data.</p>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Edit Record</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editForm"></form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveRecord()">Save</button>
+                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

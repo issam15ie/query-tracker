@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Schema - MOC Query Tracker</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        .schema-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            margin-left: 270px;
+        }
+
+        .schema-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .schema-card h2 {
+            color: #495057;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .schema-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .schema-table th {
+            background: #007bff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .schema-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .schema-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .schema-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .new-column {
+            background: #d4edda !important;
+            font-weight: 600;
+        }
+
+        .badge-new {
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+
+        .code-block {
+            background: #2d333b;
+            color: #adbac7;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            margin-top: 15px;
+        }
+
+        .feature-demo {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .feature-demo h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+
+        .demo-link {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        .demo-link:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Left Sidebar Menu -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-user-circle"></i>
+            <span id="sidebarUserName">Loading...</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="index.html" class="sidebar-link">
+                <i class="fas fa-plus-circle"></i>
+                <span>New Query</span>
+            </a>
+            <a href="index.html#all" class="sidebar-link">
+                <i class="fas fa-list"></i>
+                <span>All Queries</span>
+            </a>
+            <a href="dashboard.html" id="dashboardLink" class="sidebar-link" style="display: none;">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="profile.html" class="sidebar-link">
+                <i class="fas fa-user-cog"></i>
+                <span>Profile Settings</span>
+            </a>
+            <a href="#" id="logoutLink" class="sidebar-link logout-link">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Toggle Sidebar Button -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="schema-container">
+        <h1 style="color: white;"><i class="fas fa-database"></i> Database Schema Information</h1>
+
+        <!-- Queries Table Schema -->
+        <div class="schema-card">
+            <h2><i class="fas fa-table"></i> Queries Table Schema</h2>
+            <p>The main table storing all database query requests.</p>
+            
+            <table class="schema-table">
+                <thead>
+                    <tr>
+                        <th>Column Name</th>
+                        <th>Data Type</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>id</td>
+                        <td>INTEGER PRIMARY KEY</td>
+                        <td>Unique identifier for each query</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>query_text</td>
+                        <td>TEXT</td>
+                        <td>The SQL query content</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>user_name</td>
+                        <td>TEXT</td>
+                        <td>Username who submitted the query</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>purpose</td>
+                        <td>TEXT</td>
+                        <td>Purpose/reason for the query</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>schema_name</td>
+                        <td>TEXT</td>
+                        <td>Database schema name</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>environment</td>
+                        <td>TEXT</td>
+                        <td>Environment (Dev, Test, Staging, Prod)</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>timestamp</td>
+                        <td>DATETIME</td>
+                        <td>When the query was created</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>parent_id</td>
+                        <td>INTEGER</td>
+                        <td>For versioning - links to original query</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>version</td>
+                        <td>INTEGER</td>
+                        <td>Version number for tracking edits</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr class="new-column">
+                        <td>status <span class="badge-new">NEW</span></td>
+                        <td>TEXT</td>
+                        <td>Query status (Pending, In Progress, Completed, etc.)</td>
+                        <td><strong>Added ✅</strong></td>
+                    </tr>
+                    <tr class="new-column">
+                        <td>priority <span class="badge-new">NEW</span></td>
+                        <td>TEXT</td>
+                        <td>Priority level (Low, Medium, High, Critical)</td>
+                        <td><strong>Added ✅</strong></td>
+                    </tr>
+                    <tr class="new-column">
+                        <td>assigned_to <span class="badge-new">NEW</span></td>
+                        <td>TEXT</td>
+                        <td>Who the query is assigned to</td>
+                        <td><strong>Added ✅</strong></td>
+                    </tr>
+                    <tr class="new-column">
+                        <td>completed_at <span class="badge-new">NEW</span></td>
+                        <td>DATETIME</td>
+                        <td>When the query was completed</td>
+                        <td><strong>Added ✅</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Comments Table Schema -->
+        <div class="schema-card">
+            <h2><i class="fas fa-comments"></i> Comments Table Schema <span class="badge-new">NEW TABLE</span></h2>
+            <p>New table for storing comments on queries.</p>
+            
+            <table class="schema-table">
+                <thead>
+                    <tr>
+                        <th>Column Name</th>
+                        <th>Data Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>id</td>
+                        <td>INTEGER PRIMARY KEY</td>
+                        <td>Unique identifier for each comment</td>
+                    </tr>
+                    <tr>
+                        <td>query_id</td>
+                        <td>INTEGER</td>
+                        <td>Links to the query being commented on</td>
+                    </tr>
+                    <tr>
+                        <td>user_name</td>
+                        <td>TEXT</td>
+                        <td>Username who posted the comment</td>
+                    </tr>
+                    <tr>
+                        <td>comment_text</td>
+                        <td>TEXT</td>
+                        <td>The comment content</td>
+                    </tr>
+                    <tr>
+                        <td>timestamp</td>
+                        <td>DATETIME</td>
+                        <td>When the comment was posted</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Users Table Updates -->
+        <div class="schema-card">
+            <h2><i class="fas fa-users"></i> Users Table Schema</h2>
+            <p>User accounts and permissions.</p>
+            
+            <table class="schema-table">
+                <thead>
+                    <tr>
+                        <th>Column Name</th>
+                        <th>Data Type</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>id</td>
+                        <td>INTEGER PRIMARY KEY</td>
+                        <td>Unique user ID</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>username</td>
+                        <td>TEXT UNIQUE</td>
+                        <td>Login username</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>password</td>
+                        <td>TEXT</td>
+                        <td>Hashed password</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>full_name</td>
+                        <td>TEXT</td>
+                        <td>User's full name</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>email</td>
+                        <td>TEXT</td>
+                        <td>User's email address</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>role</td>
+                        <td>TEXT</td>
+                        <td>User role (admin/user)</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>can_edit_others</td>
+                        <td>INTEGER (0/1)</td>
+                        <td>Permission to edit other users' queries</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>can_delete_others</td>
+                        <td>INTEGER (0/1)</td>
+                        <td>Permission to delete other users' queries</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr>
+                        <td>can_register_users</td>
+                        <td>INTEGER (0/1)</td>
+                        <td>Permission to register new users</td>
+                        <td>Original</td>
+                    </tr>
+                    <tr class="new-column">
+                        <td>can_view_dashboard <span class="badge-new">NEW</span></td>
+                        <td>INTEGER (0/1)</td>
+                        <td>Permission to view the dashboard</td>
+                        <td><strong>Added ✅</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- URL Parameter Handling Demo -->
+        <div class="schema-card">
+            <h2><i class="fas fa-link"></i> URL Parameter Handling</h2>
+            <p>Direct links to specific queries with auto-highlight and scroll.</p>
+            
+            <div class="feature-demo">
+                <h4><i class="fas fa-info-circle"></i> How It Works</h4>
+                <p>When you include a <code>?query=ID</code> parameter in the URL, the application will:</p>
+                <ul>
+                    <li>✅ Automatically scroll to that specific query</li>
+                    <li>✅ Highlight it with a yellow pulsing border</li>
+                    <li>✅ Expand it if it was collapsed</li>
+                    <li>✅ Keep the highlight for 3 seconds</li>
+                </ul>
+
+                <h4>Try It Now:</h4>
+                <div class="code-block">
+                    http://10.10.44.224:3000/?query=64
+                </div>
+                <p style="margin-top: 10px;">This link will take you directly to query #64 and highlight it!</p>
+
+                <h4>Where You See This:</h4>
+                <ul>
+                    <li><strong>In Emails:</strong> When you click "Send via Outlook", the email includes a direct link</li>
+                    <li><strong>Email Format:</strong> "View Query: http://10.10.44.224:3000/?query=64"</li>
+                    <li><strong>Result:</strong> Recipient clicks → Opens app → Scrolls to query → Highlights it</li>
+                </ul>
+
+                <a href="index.html?query=64" class="demo-link">
+                    <i class="fas fa-external-link-alt"></i> Test URL Parameter (Query #64)
+                </a>
+            </div>
+        </div>
+
+        <!-- How to Verify -->
+        <div class="schema-card">
+            <h2><i class="fas fa-check-circle"></i> How to Verify These Changes</h2>
+            
+            <h3>1. Database Schema (New Columns)</h3>
+            <ul>
+                <li><strong>Add a Query:</strong> Go to main page → Add new query</li>
+                <li><strong>See New Fields:</strong> You'll see "Priority" and "Status" dropdowns</li>
+                <li><strong>See Badges:</strong> After submitting, query card shows colored status/priority badges</li>
+            </ul>
+
+            <h3>2. Comments System</h3>
+            <ul>
+                <li><strong>Open Any Query:</strong> Scroll to the bottom of any query card</li>
+                <li><strong>See "Comments" Section:</strong> Click "Show Comments"</li>
+                <li><strong>Add Comment:</strong> Type and click "Post Comment"</li>
+            </ul>
+
+            <h3>3. URL Parameter Handling</h3>
+            <ul>
+                <li><strong>Send an Email:</strong> Click "Send via Outlook" on any query</li>
+                <li><strong>Check Email Body:</strong> Look for "View Query: http://..."</li>
+                <li><strong>Click the Link:</strong> Opens app and highlights that query</li>
+                <li><strong>Or Test Manually:</strong> Add <code>?query=64</code> to the URL</li>
+            </ul>
+
+            <h3>4. Dashboard Permission</h3>
+            <ul>
+                <li><strong>Profile Settings:</strong> Click your name in sidebar</li>
+                <li><strong>My Permissions:</strong> See "View Dashboard" permission</li>
+                <li><strong>User Management:</strong> (Admin only) See dashboard permission for all users</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="index.html" class="demo-link">
+                <i class="fas fa-arrow-left"></i> Back to Queries
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Setup sidebar
+        const sessionId = localStorage.getItem('sessionId');
+        const userInfo = localStorage.getItem('user');
+        
+        if (!sessionId || !userInfo) {
+            window.location.href = '/login.html';
+        } else {
+            const user = JSON.parse(userInfo);
+            document.getElementById('sidebarUserName').textContent = user.full_name || user.username;
+            
+            // Show dashboard link if permission
+            if (user.permissions && user.permissions.can_view_dashboard) {
+                document.getElementById('dashboardLink').style.display = 'flex';
+            }
+        }
+
+        // Sidebar toggle
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        });
+
+        // Logout
+        document.getElementById('logoutLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('sessionId');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        });
+    </script>
+</body>
+</html>
+
+

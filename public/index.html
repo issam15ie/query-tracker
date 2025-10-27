@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOC Query Tracker</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-database"></i> MOC Query Tracker</h1>
+            <p>Track database queries sent to Infrastructure DB Team</p>
+            
+        </header>
+
+        <!-- Left Sidebar Menu -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-user-circle"></i>
+                <span id="sidebarUserName">Loading...</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="sidebar-link active" id="newQueryLink">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>New Query</span>
+                </a>
+                <a href="#" class="sidebar-link" id="allQueriesLink">
+                    <i class="fas fa-list"></i>
+                    <span>All Queries</span>
+                </a>
+                <a href="#" id="dashboardLink" class="sidebar-link" style="display: none;">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="profile.html" class="sidebar-link">
+                    <i class="fas fa-user-cog"></i>
+                    <span>Profile Settings</span>
+                </a>
+                <a href="#" id="logoutLink" class="sidebar-link logout-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Toggle Sidebar Button -->
+        <button class="sidebar-toggle" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="main-content">
+            <!-- Add Query Form -->
+            <section class="add-query-section" id="newQuerySection">
+                <h2><i class="fas fa-plus-circle"></i> Add New Query</h2>
+                <form id="queryForm" class="query-form">
+                    <div class="form-group">
+                        <label for="queryText">Database Query:</label>
+                        <textarea id="queryText" name="queryText" placeholder="Enter your SQL query here..." required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="purpose">Purpose:</label>
+                        <input type="text" id="purpose" name="purpose" placeholder="Why are you running this query?" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="projectName">Project:</label>
+                            <select id="projectName" name="projectName" required>
+                                <option value="">Select Project</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="schemaName">Schema:</label>
+                            <select id="schemaName" name="schemaName" required disabled>
+                                <option value="">Select Project First</option>
+                                <option value="add_new">+ Add New Schema</option>
+                            </select>
+                            <input type="text" id="newSchemaInput" name="newSchemaInput" placeholder="Enter new schema name" style="display: none; margin-top: 8px;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="priority">Priority:</label>
+                            <select id="priority" name="priority" required>
+                                <option value="Low">Low</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="environment">Environment:</label>
+                            <select id="environment" name="environment" required>
+                                <option value="">Select Environment</option>
+                                <option value="Development">Development</option>
+                                <option value="Testing">Testing</option>
+                                <option value="Staging">Staging</option>
+                                <option value="Production">Production</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden status field - always "In Progress" for new queries -->
+                    <input type="hidden" id="status" name="status" value="In Progress">
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Query
+                    </button>
+                </form>
+            </section>
+
+            <!-- All Queries Section -->
+            <section class="search-section" id="allQueriesSection" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;"><i class="fas fa-list"></i> All Queries</h2>
+                    <button class="btn btn-primary" id="newQueryBtn" style="margin-left: 20px;">
+                        <i class="fas fa-plus-circle"></i> New Query
+                    </button>
+                </div>
+                <h2 style="display: none;"><i class="fas fa-search"></i> Search Queries</h2>
+                <div class="search-form">
+                    <div class="search-row">
+                        <input type="text" id="searchQuery" placeholder="Search in queries, users, or purposes..." class="search-input">
+                        <input type="text" id="searchUser" placeholder="Filter by user" class="search-input">
+                        <input type="text" id="searchPurpose" placeholder="Filter by purpose" class="search-input">
+                        <select id="searchSchema" class="search-input">
+                            <option value="">All Schemas</option>
+                            <option value="oci_db_portal">oci_db_portal</option>
+                            <option value="oci_db_cts">oci_db_cts</option>
+                        </select>
+                        <select id="searchEnvironment" class="search-input">
+                            <option value="">All Environments</option>
+                            <option value="Development">Development</option>
+                            <option value="Testing">Testing</option>
+                            <option value="Staging">Staging</option>
+                            <option value="Production">Production</option>
+                        </select>
+                        <select id="searchStatus" class="search-input">
+                            <option value="">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="On Hold">On Hold</option>
+                        </select>
+                        <select id="searchPriority" class="search-input">
+                            <option value="">All Priorities</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                        <button id="searchBtn" class="btn btn-secondary">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                        <button id="clearSearchBtn" class="btn btn-outline">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Queries List -->
+            <section class="queries-section" id="queriesListSection">
+                <div class="section-header">
+                    <h2><i class="fas fa-list"></i> Query History</h2>
+                    <div class="stats">
+                        <span id="queryCount" class="stat-badge">0 queries</span>
+                    </div>
+                </div>
+                
+                <div id="queriesList" class="queries-list">
+                    <!-- Queries will be loaded here -->
+                </div>
+                
+                <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+                
+                <div id="noQueries" class="no-queries" style="display: none;">
+                    <i class="fas fa-inbox"></i>
+                    <p>No queries found. Add your first query above!</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Edit Query Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Edit Query</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editForm" class="edit-form">
+                    <div class="form-group">
+                        <label for="editQueryText">Database Query:</label>
+                        <textarea id="editQueryText" name="editQueryText" placeholder="Enter your SQL query here..." required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editPurpose">Purpose:</label>
+                        <input type="text" id="editPurpose" name="editPurpose" placeholder="Why are you running this query?" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editSchemaName">Schema:</label>
+                            <select id="editSchemaName" name="editSchemaName" required>
+                                <option value="">Select Schema</option>
+                            </select>
+                            <input type="text" id="editNewSchemaInput" name="editNewSchemaInput" placeholder="Enter new schema name" style="display: none; margin-top: 8px;">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editEnvironment">Environment:</label>
+                            <select id="editEnvironment" name="editEnvironment" required>
+                                <option value="">Select Environment</option>
+                                <option value="Development">Development</option>
+                                <option value="Testing">Testing</option>
+                                <option value="Staging">Staging</option>
+                                <option value="Production">Production</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editPriority">Priority:</label>
+                            <select id="editPriority" name="editPriority" required>
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editStatus">Status:</label>
+                            <select id="editStatus" name="editStatus" required>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Rejected">Rejected</option>
+                                <option value="On Hold">On Hold</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="saveEdit" class="btn btn-primary">Save Changes</button>
+                <button id="cancelEdit" class="btn btn-outline">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this query?</p>
+                <p class="query-preview"></p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmDelete" class="btn btn-danger">Delete</button>
+                <button id="cancelDelete" class="btn btn-outline">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version History Modal -->
+    <div id="versionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-history"></i> Version History</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="versionList" class="version-list">
+                    <!-- Version history will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeVersion" class="btn btn-outline">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipient Selection Modal -->
+    <div id="recipientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-envelope"></i> Select Email Recipient</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="recipientSelect">To:</label>
+                    <select id="recipientSelect" name="recipientSelect" required>
+                        <option value="">Select Recipient</option>
+                        <option value="salmohaimeed01@moc.gov.sa">Sulaiman Almohaimeed (Contractor)</option>
+                        <option value="DBA@moc.gov.sa">Database Team</option>
+                        <option value="add_new">+ Add New Recipient</option>
+                    </select>
+                    <input type="email" id="newRecipientInput" name="newRecipientInput" placeholder="Enter new email address" style="display: none; margin-top: 8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label for="ccSelect">CC:</label>
+                    <select id="ccSelect" name="ccSelect">
+                        <option value="">Select CC Recipient</option>
+                        <option value="salmohaimeed01@moc.gov.sa">Sulaiman Almohaimeed (Contractor)</option>
+                        <option value="DBA@moc.gov.sa">Database Team</option>
+                        <option value="add_new_cc">+ Add New CC Recipient</option>
+                    </select>
+                    <input type="email" id="newCCInput" name="newCCInput" placeholder="Enter new CC email address" style="display: none; margin-top: 8px;">
+                </div>
+                
+                <div class="email-preview">
+                    <h4>Email Preview:</h4>
+                    <div id="emailPreviewContent"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="copyEmailContent" class="btn btn-secondary">
+                    <i class="fas fa-copy"></i> Copy Email Content
+                </button>
+                <button id="downloadSQLFile" class="btn btn-info">
+                    <i class="fas fa-download"></i> Download SQL File
+                </button>
+                <button id="sendEmail" class="btn btn-success">Send Email</button>
+                <button id="cancelEmail" class="btn btn-outline">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
