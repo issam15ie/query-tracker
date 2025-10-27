@@ -2088,6 +2088,112 @@ app.get('/api/approvals/dashboard-stats', requireAuth, (req, res) => {
   });
 });
 
+// Get all approval levels (admin only)
+app.get('/api/approval-levels', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  
+  const sql = `
+    SELECT al.*, p.name as project_name 
+    FROM approval_levels al
+    LEFT JOIN projects p ON al.project_id = p.id
+    ORDER BY al.project_id, al.level_number
+  `;
+  
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Get approval levels for a specific project
+app.get('/api/approval-levels/project/:projectId', requireAuth, (req, res) => {
+  const projectId = req.params.projectId;
+  
+  const sql = `
+    SELECT * FROM approval_levels 
+    WHERE project_id = ? 
+    ORDER BY level_number ASC
+  `;
+  
+  db.all(sql, [projectId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Create approval level (admin only)
+app.post('/api/approval-levels', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  
+  const { project_id, level_number, approver_username, timeout_hours, requires_all } = req.body;
+  
+  if (!level_number || !approver_username) {
+    return res.status(400).json({ error: 'Level number and approver username are required' });
+  }
+  
+  const sql = `INSERT INTO approval_levels (project_id, level_number, approver_username, timeout_hours, requires_all) 
+               VALUES (?, ?, ?, ?, ?)`;
+  
+  db.run(sql, [project_id || null, level_number, approver_username, timeout_hours || 48, requires_all || 0], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Approval level created successfully', 
+      id: this.lastID 
+    });
+  });
+});
+
+// Update approval level (admin only)
+app.put('/api/approval-levels/:id', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  
+  const { id } = req.params;
+  const { project_id, level_number, approver_username, timeout_hours, requires_all } = req.body;
+  
+  const sql = `UPDATE approval_levels 
+               SET project_id = ?, level_number = ?, approver_username = ?, timeout_hours = ?, requires_all = ?
+               WHERE id = ?`;
+  
+  db.run(sql, [project_id || null, level_number, approver_username, timeout_hours || 48, requires_all || 0, id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    res.json({ success: true, message: 'Approval level updated successfully' });
+  });
+});
+
+// Delete approval level (admin only)
+app.delete('/api/approval-levels/:id', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  
+  const { id } = req.params;
+  
+  db.run('DELETE FROM approval_levels WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    res.json({ success: true, message: 'Approval level deleted successfully' });
+  });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Network access: http://10.10.44.224:${PORT}`);
