@@ -134,42 +134,22 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2><i class="fas fa-database"></i> Query Tracker</h2>
-            <button class="sidebar-toggle" id="sidebarToggle">
-                <i class="fas fa-chevron-left"></i>
-            </button>
+            <i class="fas fa-user-circle"></i>
+            <span id="sidebarUserName">Loading...</span>
         </div>
         <nav class="sidebar-nav">
-            <a href="index.html" class="nav-item">
-                <i class="fas fa-plus-circle"></i>
-                <span>New Query</span>
-            </a>
-            <a href="index.html#all" class="nav-item">
-                <i class="fas fa-list"></i>
-                <span>All Queries</span>
-            </a>
-            <a href="dashboard.html" class="nav-item" id="dashboardLink" style="display: none;">
-                <i class="fas fa-chart-line"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="approvals.html" class="nav-item active">
-                <i class="fas fa-check-circle"></i>
-                <span>Approvals</span>
-            </a>
-            <a href="profile.html" class="nav-item">
-                <i class="fas fa-user"></i>
-                <span>Profile</span>
-            </a>
-            <a href="admin.html" class="nav-item" id="adminLink" style="display: none;">
-                <i class="fas fa-cog"></i>
-                <span>Admin Panel</span>
-            </a>
-            <a href="#" class="nav-item" id="logoutLink">
+            <!-- Menu items will be generated dynamically by menu.js -->
+            <a href="#" class="sidebar-link logout-link" id="logoutLink">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Logout</span>
             </a>
         </nav>
     </div>
+
+    <!-- Toggle Sidebar Button -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
 
     <!-- Main Content -->
     <div class="approval-container" id="approvalContainer">
@@ -228,6 +208,7 @@
         <div id="notificationsList"></div>
     </div>
 
+    <script src="menu.js"></script>
     <script src="approvals.js"></script>
 </body>
 </html>

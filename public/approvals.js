@@ -1,4 +1,4 @@
-let sessionId = null;
+// (sessionId is declared in menu.js)
 let currentApprovalAction = null;
 let currentQueryId = null;
 let currentLevel = null;
@@ -9,11 +9,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeApp() {
-    // Get session ID
+    // Get session ID and user data
     sessionId = localStorage.getItem('sessionId');
+    const userStr = localStorage.getItem('user');
     
-    if (!sessionId) {
-        window.location.href = 'login.html';
+    console.log('[APPROVALS] Session ID from storage:', sessionId ? 'Found' : 'Not found');
+    console.log('[APPROVALS] User data from storage:', userStr ? 'Found' : 'Not found');
+    
+    if (!sessionId || !userStr) {
+        console.log('[APPROVALS] Missing session or user data, redirecting to login');
+        window.location.href = '/login.html';
         return;
     }
 
@@ -31,31 +36,41 @@ async function initializeApp() {
 
 async function checkAuth() {
     try {
+        console.log('[APPROVALS] Checking auth with session:', sessionId);
+        
         const response = await fetch('/api/auth/current-user', {
             headers: { 'x-session-id': sessionId }
         });
         
+        console.log('[APPROVALS] Auth response status:', response.status);
+        
         if (!response.ok) {
+            console.error('[APPROVALS] Auth failed with status:', response.status);
             throw new Error('Not authenticated');
         }
         
         const data = await response.json();
-        showNavLinks(data.user.role, data.user.permissions);
+        console.log('[APPROVALS] Auth successful, user:', data.user.username);
+        
+        // Check if user has permission to view approvals
+        if (!data.user.can_view_approvals && data.user.role !== 'admin') {
+            alert('Access denied. You do not have permission to view approvals.');
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        // Menu is now handled by menu.js
+        
+        // Set username in sidebar
+        const sidebarUserName = document.getElementById('sidebarUserName');
+        if (sidebarUserName && data.user) {
+            sidebarUserName.textContent = data.user.full_name || data.user.username;
+        }
     } catch (error) {
+        console.error('[APPROVALS] Auth error:', error);
         localStorage.removeItem('sessionId');
-        window.location.href = 'login.html';
-    }
-}
-
-function showNavLinks(role, permissions) {
-    // Show dashboard if user has permission
-    if (permissions.can_view_dashboard) {
-        document.getElementById('dashboardLink').style.display = 'block';
-    }
-    
-    // Show admin link if user is admin
-    if (role === 'admin') {
-        document.getElementById('adminLink').style.display = 'block';
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
     }
 }
 
@@ -92,13 +107,17 @@ function toggleSidebar() {
 async function loadPendingApprovals() {
     try {
         const response = await fetch('/api/approvals/pending', {
-            headers: { 'x-session-id': sessionId }
+            headers: { 'x-session-id': sessionId },
+            cache: 'no-cache' // Force fresh data
         });
         
         if (!response.ok) throw new Error('Failed to load approvals');
         
         const approvals = await response.json();
         displayPendingApprovals(approvals);
+        
+        // Update pending count immediately from the fetched data
+        document.getElementById('pendingCount').textContent = approvals.length || 0;
     } catch (error) {
         console.error('Error loading approvals:', error);
         document.getElementById('pendingApprovalsList').innerHTML = 
@@ -142,10 +161,25 @@ function displayPendingApprovals(approvals) {
 async function loadStats() {
     try {
         const response = await fetch('/api/approvals/dashboard-stats', {
-            headers: { 'x-session-id': sessionId }
+            headers: { 'x-session-id': sessionId },
+            cache: 'no-cache' // Force fresh data
         });
         
-        if (!response.ok) throw new Error('Failed to load stats');
+        if (!response.ok) {
+            console.error('Failed to load stats, status:', response.status);
+            // If user doesn't have permission, still try to show pending count
+            if (response.status === 403) {
+                // Just load pending approvals count instead
+                const pendingResponse = await fetch('/api/approvals/pending', {
+                    headers: { 'x-session-id': sessionId }
+                });
+                if (pendingResponse.ok) {
+                    const pendingApprovals = await pendingResponse.json();
+                    document.getElementById('pendingCount').textContent = pendingApprovals.length || 0;
+                }
+            }
+            return;
+        }
         
         const stats = await response.json();
         document.getElementById('pendingCount').textContent = stats.pending || 0;
@@ -196,9 +230,13 @@ async function approveQuery() {
         if (!response.ok) throw new Error('Failed to approve query');
         
         closeModal();
-        loadPendingApprovals();
-        loadStats();
-        loadNotifications();
+        
+        // Reload all data to ensure stats are updated
+        await Promise.all([
+            loadPendingApprovals(),
+            loadStats(),
+            loadNotifications()
+        ]);
         
         alert('Query approved successfully!');
     } catch (error) {
@@ -223,9 +261,13 @@ async function rejectQuery() {
         if (!response.ok) throw new Error('Failed to reject query');
         
         closeModal();
-        loadPendingApprovals();
-        loadStats();
-        loadNotifications();
+        
+        // Reload all data to ensure stats are updated
+        await Promise.all([
+            loadPendingApprovals(),
+            loadStats(),
+            loadNotifications()
+        ]);
         
         alert('Query rejected');
     } catch (error) {
@@ -288,7 +330,24 @@ function toggleNotifications() {
     dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
-function logout() {
-    localStorage.removeItem('sessionId');
-    window.location.href = 'login.html';
+async function logout() {
+    try {
+        if (sessionId) {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'x-session-id': sessionId
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+    } finally {
+        // Clear local storage
+        localStorage.removeItem('sessionId');
+        localStorage.removeItem('user');
+        
+        // Redirect to login
+        window.location.href = '/login.html';
+    }
 }

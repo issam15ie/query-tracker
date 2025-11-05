@@ -131,22 +131,25 @@
     </style>
 </head>
 <body>
+    <!-- Left Sidebar Menu -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2><i class="fas fa-database"></i> Query Tracker</h2>
-            <button class="sidebar-toggle" id="sidebarToggle">
-                <i class="fas fa-chevron-left"></i>
-            </button>
+            <i class="fas fa-user-circle"></i>
+            <span id="sidebarUserName">Loading...</span>
         </div>
         <nav class="sidebar-nav">
-            <a href="index.html"><i class="fas fa-home"></i> New Query</a>
-            <a href="index.html#all"><i class="fas fa-list"></i> All Queries</a>
-            <a href="dashboard.html"><i class="fas fa-chart-bar"></i> Dashboard</a>
-            <a href="profile.html"><i class="fas fa-user"></i> Profile</a>
-            <a href="#" class="active"><i class="fas fa-cog"></i> Admin</a>
-            <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <!-- Menu items will be generated dynamically by menu.js -->
+            <a href="#" id="logoutLink" class="sidebar-link logout-link">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
         </nav>
     </div>
+
+    <!-- Toggle Sidebar Button -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
 
     <div class="admin-container">
         <div class="admin-header">
@@ -185,6 +188,7 @@
         </div>
     </div>
 
+    <script src="menu.js"></script>
     <script src="admin.js"></script>
 </body>
 </html>

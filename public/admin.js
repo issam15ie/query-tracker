@@ -1,5 +1,4 @@
-// Global variables
-let sessionId = null;
+// Global variables (sessionId is declared in menu.js)
 let tables = [];
 let currentTable = null;
 let currentTableData = null;
@@ -40,8 +39,16 @@ async function checkAuth() {
         }
         
         document.getElementById('userInfo').textContent = `${data.user.username} (${data.user.role})`;
+        
+        // Set username in sidebar
+        const sidebarUserName = document.getElementById('sidebarUserName');
+        if (sidebarUserName && data.user) {
+            sidebarUserName.textContent = data.user.full_name || data.user.username;
+        }
+        
+        // Set navigation links visibility based on user permissions
+        // Menu is now handled by menu.js
     } catch (error) {
-        console.error('Auth check failed:', error);
         window.location.href = 'login.html';
     }
 }
@@ -65,17 +72,9 @@ function setupEventListeners() {
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const container = document.querySelector('.admin-container');
-    const toggleIcon = document.querySelector('#sidebarToggle i');
     
     sidebar.classList.toggle('collapsed');
     container.classList.toggle('sidebar-collapsed');
-    
-    // Change icon
-    if (sidebar.classList.contains('collapsed')) {
-        toggleIcon.className = 'fas fa-chevron-right';
-    } else {
-        toggleIcon.className = 'fas fa-chevron-left';
-    }
 }
 
 // Load all tables
@@ -209,6 +208,11 @@ function showAddModal() {
         input.name = col.name;
         input.required = col.notnull && !col.dflt_value;
         
+        // Special handling for project_id - allow empty string for NULL
+        if (col.name === 'project_id' && !col.notnull) {
+            input.placeholder = 'Leave empty for global';
+        }
+        
         group.appendChild(label);
         group.appendChild(input);
         form.appendChild(group);
@@ -267,7 +271,20 @@ async function saveRecord() {
     
     currentColumns.forEach(col => {
         if (col.pk && !editRecordId) return; // Skip PK for new records
-        data[col.name] = formData.get(col.name) || null;
+        let value = formData.get(col.name);
+        
+        // Handle empty values for nullable integer fields
+        if (col.type.toLowerCase().includes('integer')) {
+            if (value === '' || value === null) {
+                value = null;
+            } else {
+                value = parseInt(value);
+            }
+        } else if (value === '') {
+            value = null;
+        }
+        
+        data[col.name] = value;
     });
     
     try {
@@ -296,15 +313,19 @@ async function saveRecord() {
         
         if (!response.ok) {
             const error = await response.json();
+            console.error('Server error:', error);
             throw new Error(error.error || 'Failed to save record');
         }
         
+        const result = await response.json();
+        console.log('Save result:', result);
         alert('Record saved successfully');
         closeModal();
         await loadTableData(currentTable);
     } catch (error) {
         console.error('Error saving record:', error);
-        alert('Failed to save record: ' + error.message);
+        console.error('Data being sent:', data);
+        alert('Failed to save record: ' + error.message + '\n\nCheck console for details.');
     }
 }
 

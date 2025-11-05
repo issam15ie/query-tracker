@@ -94,6 +94,24 @@ db.serialize(() => {
           console.error('Error adding can_delete_comments column:', err);
         }
       });
+      
+      db.run(`ALTER TABLE users ADD COLUMN can_view_approvals INTEGER DEFAULT 0`, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('Error adding can_view_approvals column:', err);
+        }
+      });
+      
+      db.run(`ALTER TABLE users ADD COLUMN can_view_admin INTEGER DEFAULT 0`, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('Error adding can_view_admin column:', err);
+        }
+      });
+      
+      db.run(`ALTER TABLE users ADD COLUMN can_manage_permissions INTEGER DEFAULT 0`, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('Error adding can_manage_permissions column:', err);
+        }
+      });
     }
   });
 
@@ -545,6 +563,111 @@ app.get('/api/auth/auto-login', (req, res) => {
   }
 });
 
+// Permission constants and mapping system
+const PERMISSIONS = {
+  // Action Permissions (Type 1)
+  ACTION: {
+    EDIT_OTHERS: 'can_edit_others',
+    DELETE_OTHERS: 'can_delete_others',
+    REGISTER_USERS: 'can_register_users',
+    DELETE_COMMENTS: 'can_delete_comments'
+  },
+  
+  // Access Permissions (Type 2)
+  ACCESS: {
+    VIEW_DASHBOARD: 'can_view_dashboard',
+    VIEW_APPROVALS: 'can_view_approvals',
+    MANAGE_PERMISSIONS: 'can_manage_permissions',
+    VIEW_ADMIN: 'can_view_admin'
+  },
+  
+  // All permissions combined
+  ALL: [
+    'can_edit_others',
+    'can_delete_others', 
+    'can_register_users',
+    'can_delete_comments',
+    'can_view_dashboard',
+    'can_view_approvals',
+    'can_manage_permissions',
+    'can_view_admin'
+  ]
+};
+
+// Permission descriptions for UI
+const PERMISSION_DESCRIPTIONS = {
+  can_edit_others: 'Edit other users\' queries',
+  can_delete_others: 'Delete other users\' queries',
+  can_register_users: 'Register new users',
+  can_delete_comments: 'Delete comments from any user',
+  can_view_dashboard: 'Access the analytics dashboard',
+  can_view_approvals: 'Access the approvals page',
+  can_manage_permissions: 'Manage other users\' permissions',
+  can_view_admin: 'Access the admin database management'
+};
+
+// Navigation menu mapping
+const NAVIGATION_PERMISSIONS = {
+  dashboardLink: PERMISSIONS.ACCESS.VIEW_DASHBOARD,
+  approvalsLink: PERMISSIONS.ACCESS.VIEW_APPROVALS,
+  permissionsLink: PERMISSIONS.ACCESS.MANAGE_PERMISSIONS,
+  adminLink: PERMISSIONS.ACCESS.VIEW_ADMIN
+};
+
+// Permission validation middleware
+function requirePermission(permission) {
+    return (req, res, next) => {
+        console.log(`🔐 Checking permission: ${permission} for user:`, req.user?.username);
+        
+        if (!req.user) {
+            console.warn('⚠️ No user in request for permission check');
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+        
+        const isAdmin = req.user.role === 'admin';
+        const hasPermission = req.user[permission] === 1 || req.user[permission] === true;
+        
+        console.log(`📋 Permission check result:`, {
+            user: req.user.username,
+            role: req.user.role,
+            isAdmin,
+            permission,
+            hasPermission,
+            permissionValue: req.user[permission]
+        });
+        
+        if (isAdmin || hasPermission) {
+            console.log(`✅ Permission granted: ${permission} for ${req.user.username}`);
+            next();
+        } else {
+            console.warn(`❌ Permission denied: ${permission} for ${req.user.username}`);
+            return res.status(403).json({ 
+                error: 'Insufficient permissions',
+                required: permission,
+                user: req.user.username
+            });
+        }
+    };
+}
+
+// Enhanced permission inheritance for user objects
+function enhanceUserPermissions(user) {
+    const isAdmin = user.role === 'admin';
+    
+    return {
+        ...user,
+        // Admin gets all permissions
+        can_view_dashboard: isAdmin || user.can_view_dashboard === 1,
+        can_view_approvals: isAdmin || user.can_view_approvals === 1,
+        can_manage_permissions: isAdmin || user.can_manage_permissions === 1,
+        can_view_admin: isAdmin || user.can_view_admin === 1,
+        can_edit_others: isAdmin || user.can_edit_others === 1,
+        can_delete_others: isAdmin || user.can_delete_others === 1,
+        can_register_users: isAdmin || user.can_register_users === 1,
+        can_delete_comments: isAdmin || user.can_delete_comments === 1
+    };
+}
+
 // Authentication middleware
 function requireAuth(req, res, next) {
   const sessionId = req.headers['x-session-id'];
@@ -622,7 +745,7 @@ app.post('/api/auth/register', (req, res) => {
   
   if (session_id && global.activeSessions.has(session_id)) {
     const session = global.activeSessions.get(session_id);
-    if (session.user.permissions.can_register_users || session.user.role === 'admin') {
+    if (session.user.can_register_users || session.user.role === 'admin') {
       hasPermission = true;
       registeredBy = session.user.username;
     }
@@ -716,23 +839,23 @@ app.post('/api/auth/login', (req, res) => {
       });
     }
     
-    // Create session
+    // Create session with enhanced permissions
     const sessionId = generateSessionId();
+    const enhancedUser = enhanceUserPermissions(user);
+    
+    console.log('🔐 Login successful:', {
+      username: user.username,
+      role: user.role,
+      permissions: {
+        can_view_dashboard: enhancedUser.can_view_dashboard,
+        can_view_approvals: enhancedUser.can_view_approvals,
+        can_manage_permissions: enhancedUser.can_manage_permissions,
+        can_view_admin: enhancedUser.can_view_admin
+      }
+    });
+    
     global.activeSessions.set(sessionId, {
-      user: {
-        id: user.id,
-        username: user.username,
-        full_name: user.full_name,
-        email: user.email,
-        role: user.role,
-        permissions: {
-          can_edit_others: user.can_edit_others === 1 || user.role === 'admin',
-          can_delete_others: user.can_delete_others === 1 || user.role === 'admin',
-          can_register_users: user.can_register_users === 1 || user.role === 'admin',
-          can_view_dashboard: user.can_view_dashboard === 1 || user.role === 'admin',
-          can_delete_comments: user.can_delete_comments === 1 || user.role === 'admin'
-        }
-      },
+      user: enhancedUser,
       loginTime: new Date().toISOString(),
       ipAddress: ipAddress
     });
@@ -781,19 +904,253 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 
 // Get current user info
 app.get('/api/auth/current-user', requireAuth, (req, res) => {
+  console.log('🔍 Current user request from:', req.user.username);
+  
+  // Fetch fresh user data from database to ensure permissions are up-to-date
+  db.get('SELECT * FROM users WHERE id = ?', [req.user.id], (err, dbUser) => {
+    if (err) {
+      console.error('❌ Error fetching user for current-user:', err);
+      // Fallback to session data if database fetch fails
+      const enhancedUser = enhanceUserPermissions(req.user);
+      
+      console.log('📋 Returning enhanced user permissions (session fallback):', {
+        username: enhancedUser.username,
+        role: enhancedUser.role,
+        permissions: {
+          can_view_dashboard: enhancedUser.can_view_dashboard,
+          can_view_approvals: enhancedUser.can_view_approvals,
+          can_manage_permissions: enhancedUser.can_manage_permissions,
+          can_view_admin: enhancedUser.can_view_admin
+        }
+      });
+      
+      return res.json({
+        success: true,
+        user: enhancedUser
+      });
+    }
+    
+    if (!dbUser) {
+      console.error('❌ User not found for current-user');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Use fresh database data instead of session data
+    const freshUser = enhanceUserPermissions(dbUser);
+    
+    console.log('📋 Returning enhanced user permissions (fresh from DB):', {
+      username: freshUser.username,
+      role: freshUser.role,
+      permissions: {
+        can_view_dashboard: freshUser.can_view_dashboard,
+        can_view_approvals: freshUser.can_view_approvals,
+        can_manage_permissions: freshUser.can_manage_permissions,
+        can_view_admin: freshUser.can_view_admin
+      }
+    });
+    
+    res.json({
+      success: true,
+      user: freshUser
+    });
+  });
+});
+
+// Get user menu based on permissions
+app.get('/api/user/menu', requireAuth, (req, res) => {
+  console.log('🍽️ Menu requested by:', req.user.username);
+  
+  // Fetch fresh user data from database to ensure permissions are up-to-date
+  db.get('SELECT * FROM users WHERE id = ?', [req.user.id], (err, dbUser) => {
+    if (err) {
+      console.error('❌ Error fetching user for menu:', err);
+      // Fallback to session data if database fetch fails
+      const user = enhanceUserPermissions(req.user);
+      const isAdmin = user.role === 'admin';
+      
+      // Define all possible menu items
+      const allMenuItems = [
+        {
+          id: 'newQuery',
+          href: 'index.html',
+          icon: 'fas fa-plus-circle',
+          text: 'New Query',
+          alwaysVisible: true
+        },
+        {
+          id: 'allQueries',
+          href: 'index.html#all',
+          icon: 'fas fa-list',
+          text: 'All Queries',
+          alwaysVisible: true
+        },
+        {
+          id: 'dashboard',
+          href: 'dashboard.html',
+          icon: 'fas fa-chart-line',
+          text: 'Dashboard',
+          permission: 'can_view_dashboard'
+        },
+        {
+          id: 'approvals',
+          href: 'approvals.html',
+          icon: 'fas fa-check-circle',
+          text: 'Approvals',
+          permission: 'can_view_approvals'
+        },
+        {
+          id: 'permissions',
+          href: 'permissions.html',
+          icon: 'fas fa-key',
+          text: 'Permissions',
+          permission: 'can_manage_permissions'
+        },
+        {
+          id: 'profile',
+          href: 'profile.html',
+          icon: 'fas fa-user-cog',
+          text: 'Profile Settings',
+          alwaysVisible: true
+        },
+        {
+          id: 'admin',
+          href: 'admin.html',
+          icon: 'fas fa-database',
+          text: 'Database Admin',
+          permission: 'can_view_admin'
+        }
+      ];
+      
+      // Filter menu items based on user permissions
+      const visibleMenuItems = allMenuItems.filter(item => {
+        if (item.alwaysVisible) return true;
+        if (isAdmin) return true;
+        return user[item.permission] === true;
+      });
+      
+      console.log('📋 Visible menu items for', user.username, '(using session fallback):', visibleMenuItems.map(item => item.text));
+      
+      return res.json({
+        success: true,
+        menuItems: visibleMenuItems,
+        user: {
+          username: user.username,
+          role: user.role
+        }
+      });
+    }
+    
+    if (!dbUser) {
+      console.error('❌ User not found for menu generation');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Use fresh database data instead of session data
+    const freshUser = enhanceUserPermissions(dbUser);
+    const isAdmin = freshUser.role === 'admin';
+    
+    // Define all possible menu items
+    const allMenuItems = [
+      {
+        id: 'newQuery',
+        href: 'index.html',
+        icon: 'fas fa-plus-circle',
+        text: 'New Query',
+        alwaysVisible: true
+      },
+      {
+        id: 'allQueries',
+        href: 'index.html#all',
+        icon: 'fas fa-list',
+        text: 'All Queries',
+        alwaysVisible: true
+      },
+      {
+        id: 'dashboard',
+        href: 'dashboard.html',
+        icon: 'fas fa-chart-line',
+        text: 'Dashboard',
+        permission: 'can_view_dashboard'
+      },
+      {
+        id: 'approvals',
+        href: 'approvals.html',
+        icon: 'fas fa-check-circle',
+        text: 'Approvals',
+        permission: 'can_view_approvals'
+      },
+      {
+        id: 'permissions',
+        href: 'permissions.html',
+        icon: 'fas fa-key',
+        text: 'Permissions',
+        permission: 'can_manage_permissions'
+      },
+      {
+        id: 'profile',
+        href: 'profile.html',
+        icon: 'fas fa-user-cog',
+        text: 'Profile Settings',
+        alwaysVisible: true
+      },
+      {
+        id: 'admin',
+        href: 'admin.html',
+        icon: 'fas fa-database',
+        text: 'Database Admin',
+        permission: 'can_view_admin'
+      }
+    ];
+    
+    // Filter menu items based on fresh user permissions from database
+    const visibleMenuItems = allMenuItems.filter(item => {
+      if (item.alwaysVisible) return true;
+      if (isAdmin) return true;
+      return freshUser[item.permission] === true;
+    });
+    
+    console.log('📋 Visible menu items for', freshUser.username, '(fresh from DB):', visibleMenuItems.map(item => item.text));
+    console.log('🔐 Fresh permissions:', {
+      can_view_dashboard: freshUser.can_view_dashboard,
+      can_view_approvals: freshUser.can_view_approvals,
+      can_manage_permissions: freshUser.can_manage_permissions,
+      can_view_admin: freshUser.can_view_admin
+    });
+    
+    res.json({
+      success: true,
+      menuItems: visibleMenuItems,
+      user: {
+        username: freshUser.username,
+        role: freshUser.role
+      }
+    });
+  });
+});
+
+// Get permission information for frontend
+app.get('/api/permissions/info', requireAuth, (req, res) => {
+  console.log('📋 Permission info requested by:', req.user.username);
+  
   res.json({
     success: true,
-    user: req.user
+    permissions: PERMISSIONS,
+    descriptions: PERMISSION_DESCRIPTIONS,
+    navigation: NAVIGATION_PERMISSIONS,
+    userPermissions: enhanceUserPermissions(req.user)
   });
 });
 
 // Get all projects
 app.get('/api/projects', requireAuth, (req, res) => {
+  console.log('[DEBUG] /api/projects called');
   db.all('SELECT * FROM projects ORDER BY name', [], (err, rows) => {
     if (err) {
+      console.error('[ERROR] /api/projects error:', err);
       res.status(500).json({ error: err.message });
       return;
     }
+    console.log('[DEBUG] /api/projects returning', rows.length, 'projects');
     res.json(rows);
   });
 });
@@ -801,6 +1158,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
 // Get schemas by project
 app.get('/api/schemas/:projectName', requireAuth, (req, res) => {
   const { projectName } = req.params;
+  console.log('[DEBUG] /api/schemas called with project:', projectName);
   
   const sql = `
     SELECT s.* FROM schemas s
@@ -811,9 +1169,11 @@ app.get('/api/schemas/:projectName', requireAuth, (req, res) => {
   
   db.all(sql, [projectName], (err, rows) => {
     if (err) {
+      console.error('[ERROR] /api/schemas error:', err);
       res.status(500).json({ error: err.message });
       return;
     }
+    console.log('[DEBUG] /api/schemas returning', rows.length, 'schemas for project:', projectName);
     res.json(rows);
   });
 });
@@ -1039,6 +1399,63 @@ app.post('/api/queries', requireAuth, (req, res) => {
     
     logAudit('INSERT', 'queries', queryId, null, newValues, user_name, ipAddress);
     
+    // Create approval records based on project approval levels
+    console.log(`[APPROVAL DEBUG] Query #${queryId} submitted for project: ${project}`);
+    db.get("SELECT id FROM projects WHERE name = ?", [project], (err, projectRow) => {
+      if (err) {
+        console.error('[APPROVAL DEBUG] Error getting project ID:', err);
+      } else if (!projectRow) {
+        console.log(`[APPROVAL DEBUG] WARNING: Project "${project}" not found in database!`);
+      } else {
+        console.log(`[APPROVAL DEBUG] Found project ID: ${projectRow.id} for project: ${project}`);
+        // Get project-specific approval levels first
+        console.log(`[APPROVAL DEBUG] Looking for approval levels for project_id: ${projectRow.id}`);
+        db.all("SELECT * FROM approval_levels WHERE project_id = ? ORDER BY level_number ASC", [projectRow.id], (err, levels) => {
+          if (err) {
+            console.error('Error getting approval levels:', err);
+          } else if (levels && levels.length > 0) {
+            console.log(`[APPROVAL DEBUG] Found ${levels.length} approval levels for project_id ${projectRow.id}`);
+            // Create approval records for each level
+            levels.forEach(level => {
+              db.run(
+                "INSERT INTO query_approvals (query_id, level, approver_username, status) VALUES (?, ?, ?, 'pending')",
+                [queryId, level.level_number, level.approver_username],
+                function(err) {
+                  if (err) {
+                    console.error(`Error creating approval for level ${level.level_number}:`, err);
+                  } else {
+                    console.log(`Created approval record for query #${queryId}, level ${level.level_number}, approver: ${level.approver_username}`);
+                  }
+                }
+              );
+            });
+          } else {
+            // If no project-specific levels, check for global levels
+            console.log(`[APPROVAL DEBUG] No project-specific levels found, checking for global levels`);
+            db.all("SELECT * FROM approval_levels WHERE project_id IS NULL ORDER BY level_number ASC", [], (err, globalLevels) => {
+              if (err) {
+                console.error('Error getting global approval levels:', err);
+              } else if (globalLevels && globalLevels.length > 0) {
+                globalLevels.forEach(level => {
+                  db.run(
+                    "INSERT INTO query_approvals (query_id, level, approver_username, status) VALUES (?, ?, ?, 'pending')",
+                    [queryId, level.level_number, level.approver_username],
+                    function(err) {
+                      if (err) {
+                        console.error(`Error creating approval for level ${level.level_number}:`, err);
+                      } else {
+                        console.log(`Created global approval record for query #${queryId}, level ${level.level_number}, approver: ${level.approver_username}`);
+                      }
+                    }
+                  );
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+    
     res.json({
       id: queryId,
       message: 'Query added successfully'
@@ -1071,7 +1488,7 @@ app.post('/api/queries/:id/edit', requireAuth, (req, res) => {
     
     // Check permissions: user can only edit their own queries unless they have permission or are admin
     const isOwner = row.user_name === req.user.username;
-    const canEditOthers = req.user.permissions.can_edit_others || req.user.role === 'admin';
+    const canEditOthers = req.user.can_edit_others || req.user.role === 'admin';
     
     if (!isOwner && !canEditOthers) {
       console.log(`Permission denied: ${req.user.username} tried to edit query by ${row.user_name}`);
@@ -1147,7 +1564,7 @@ app.delete('/api/queries/:id', requireAuth, (req, res) => {
     
     // Check permissions: user can only delete their own queries unless they have permission or are admin
     const isOwner = row.user_name === req.user.username;
-    const canDeleteOthers = req.user.permissions.can_delete_others || req.user.role === 'admin';
+    const canDeleteOthers = req.user.can_delete_others || req.user.role === 'admin';
     
     if (!isOwner && !canDeleteOthers) {
       console.log(`Permission denied: ${req.user.username} tried to delete query by ${row.user_name}`);
@@ -1264,16 +1681,10 @@ app.get('/api/db-info', (req, res) => {
 });
 
 // Get all users (admin only)
-app.get('/api/users', requireAuth, (req, res) => {
-  // Check if user is admin
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ 
-      error: 'Permission denied',
-      message: 'Only admins can view all users'
-    });
-  }
+app.get('/api/users', requireAuth, requirePermission('can_manage_permissions'), (req, res) => {
+  console.log('👥 Users list requested by:', req.user.username);
 
-  const sql = `SELECT id, username, full_name, email, role, can_edit_others, can_delete_others, can_register_users, can_view_dashboard, can_delete_comments, is_active, created_at FROM users ORDER BY role DESC, username`;
+  const sql = `SELECT id, username, full_name, email, role, can_edit_others, can_delete_others, can_register_users, can_view_dashboard, can_delete_comments, can_view_approvals, can_view_admin, can_manage_permissions, is_active, created_at FROM users ORDER BY role DESC, username`;
   
   db.all(sql, [], (err, rows) => {
     if (err) {
@@ -1288,15 +1699,15 @@ app.get('/api/users', requireAuth, (req, res) => {
 app.get('/api/users/:id', requireAuth, (req, res) => {
   const { id } = req.params;
   
-  // Check if user is admin
-  if (req.user.role !== 'admin') {
+  // Check if user is admin or has permission to manage permissions
+  if (req.user.role !== 'admin' && !req.user.can_manage_permissions) {
     return res.status(403).json({ 
       error: 'Permission denied',
-      message: 'Only admins can view user details'
+      message: 'Only admins or users with permission management rights can view user details'
     });
   }
 
-  const sql = `SELECT id, username, full_name, email, role, can_edit_others, can_delete_others, can_register_users, can_view_dashboard, can_delete_comments, is_active, created_at FROM users WHERE id = ?`;
+  const sql = `SELECT id, username, full_name, email, role, can_edit_others, can_delete_others, can_register_users, can_view_dashboard, can_delete_comments, can_view_approvals, can_view_admin, can_manage_permissions, is_active, created_at FROM users WHERE id = ?`;
   
   db.get(sql, [id], (err, row) => {
     if (err) {
@@ -1312,16 +1723,68 @@ app.get('/api/users/:id', requireAuth, (req, res) => {
   });
 });
 
- // Update user permissions (admin only)
+// Helper function to update user session when permissions change
+function updateUserSession(userId) {
+  console.log(`🔄 [SESSION UPDATE] Updating sessions for user ID: ${userId}`);
+  console.log(`🔍 [SESSION UPDATE] Total sessions in memory: ${global.activeSessions.size}`);
+  
+  // Find all active sessions for this user
+  let sessionCount = 0;
+  let debugCount = 0;
+  
+  for (const [sessionId, session] of global.activeSessions.entries()) {
+    debugCount++;
+    console.log(`🔍 [SESSION UPDATE] Checking session ${debugCount}:`, {
+      sessionId: sessionId.substring(0, 20) + '...',
+      hasUser: !!session.user,
+      userId: session.user?.id,
+      username: session.user?.username
+    });
+    
+    if (session.user && session.user.id === userId) {
+      sessionCount++;
+      console.log(`📋 [SESSION UPDATE] Found matching session: ${sessionId.substring(0, 20)}...`);
+      
+      // Get updated user data from database
+      db.get('SELECT * FROM users WHERE id = ?', [userId], (err, user) => {
+        if (err) {
+          console.error('❌ [SESSION UPDATE] Error fetching updated user data:', err);
+          return;
+        }
+        
+        if (user) {
+          // Update the session with enhanced permissions
+          const enhancedUser = enhanceUserPermissions(user);
+          session.user = enhancedUser;
+          
+          console.log(`✅ [SESSION UPDATE] Successfully updated session for user ${user.username} (ID: ${userId})`);
+          console.log(`📋 [SESSION UPDATE] New permissions:`, {
+            can_view_dashboard: enhancedUser.can_view_dashboard,
+            can_view_approvals: enhancedUser.can_view_approvals,
+            can_manage_permissions: enhancedUser.can_manage_permissions,
+            can_view_admin: enhancedUser.can_view_admin
+          });
+        } else {
+          console.warn(`⚠️ [SESSION UPDATE] User ${userId} not found in database`);
+        }
+      });
+    }
+  }
+  
+  console.log(`📊 [SESSION UPDATE] Total sessions checked: ${debugCount}`);
+  console.log(`📊 [SESSION UPDATE] Matching sessions for user ${userId}: ${sessionCount}`);
+}
+
+// Update user permissions (admin only)
  app.put('/api/users/:id/permissions', requireAuth, (req, res) => {
    const { id } = req.params;
-   const { role, can_edit_others, can_delete_others, can_register_users, can_view_dashboard, can_delete_comments, is_active } = req.body;
+   const { role, can_edit_others, can_delete_others, can_register_users, can_view_dashboard, can_delete_comments, can_view_approvals, can_view_admin, can_manage_permissions, is_active } = req.body;
    
-   // Check if user is admin
-   if (req.user.role !== 'admin') {
+   // Check if user is admin or has permission to manage permissions
+   if (req.user.role !== 'admin' && !req.user.can_manage_permissions) {
      return res.status(403).json({ 
        error: 'Permission denied',
-       message: 'Only admins can update user permissions'
+       message: 'Only admins or users with permission management rights can update user permissions'
      });
    }
 
@@ -1365,9 +1828,27 @@ app.get('/api/users/:id', requireAuth, (req, res) => {
      }
      
      function updateUserPermissions() {
-       const sql = `UPDATE users SET role = ?, can_edit_others = ?, can_delete_others = ?, can_register_users = ?, can_view_dashboard = ?, can_delete_comments = ?, is_active = ? WHERE id = ?`;
+       const sql = `UPDATE users SET role = ?, can_edit_others = ?, can_delete_others = ?, can_register_users = ?, can_view_dashboard = ?, can_delete_comments = ?, can_view_approvals = ?, can_view_admin = ?, can_manage_permissions = ?, is_active = ? WHERE id = ?`;
        
-       db.run(sql, [role, can_edit_others ? 1 : 0, can_delete_others ? 1 : 0, can_register_users ? 1 : 0, can_view_dashboard ? 1 : 0, can_delete_comments ? 1 : 0, is_active ? 1 : 0, id], function(err) {
+       console.log(`[PERMISSIONS DEBUG] Updating user ${id} with permissions:`, {
+         role, can_edit_others, can_delete_others, can_register_users, 
+         can_view_dashboard, can_delete_comments, can_view_approvals, 
+         can_view_admin, can_manage_permissions, is_active
+       });
+       
+       db.run(sql, [
+         role,
+         can_edit_others ? 1 : 0,
+         can_delete_others ? 1 : 0,
+         can_register_users ? 1 : 0,
+         can_view_dashboard ? 1 : 0,
+         can_delete_comments ? 1 : 0,
+         can_view_approvals ? 1 : 0,
+         can_view_admin ? 1 : 0,
+         can_manage_permissions ? 1 : 0,
+         is_active ? 1 : 0,
+         id
+       ], function(err) {
          if (err) {
            console.error('Error updating user permissions:', err);
            return res.status(500).json({ error: err.message });
@@ -1377,7 +1858,11 @@ app.get('/api/users/:id', requireAuth, (req, res) => {
            return res.status(404).json({ error: 'User not found' });
          }
          
-         console.log(`Permissions updated for user ID ${id} by ${req.user.username}`);
+         console.log(`[PERMISSIONS DEBUG] Successfully updated permissions for user ID ${id} by ${req.user.username}. Changes: ${this.changes}`);
+         
+         // Update the user's session if they're currently logged in
+         updateUserSession(id);
+         
          res.json({ 
            message: 'Permissions updated successfully',
            changes: this.changes
@@ -1451,7 +1936,7 @@ app.delete('/api/queries/:queryId/comments/:commentId', requireAuth, (req, res) 
     
     // Check permissions: user can delete their own comments OR if they have permission
     const isOwner = comment.user_name === req.user.username;
-    const canDeleteComments = req.user.permissions.can_delete_comments;
+    const canDeleteComments = req.user.can_delete_comments;
     
     if (!isOwner && !canDeleteComments) {
       console.log(`Permission denied: ${req.user.username} tried to delete comment by ${comment.user_name}`);
@@ -1537,14 +2022,8 @@ app.put('/api/queries/:id/status', requireAuth, (req, res) => {
 });
 
 // Get dashboard statistics (based on latest versions only)
-app.get('/api/dashboard/stats', requireAuth, (req, res) => {
-  // Check if user has permission to view dashboard
-  if (req.user.role !== 'admin' && !req.user.permissions.can_view_dashboard) {
-    return res.status(403).json({ 
-      error: 'Permission denied',
-      message: 'You do not have permission to view the dashboard'
-    });
-  }
+app.get('/api/dashboard/stats', requireAuth, requirePermission('can_view_dashboard'), (req, res) => {
+  console.log('📊 Dashboard stats requested by:', req.user.username);
   
   const stats = {};
   
@@ -1622,14 +2101,8 @@ app.get('/api/dashboard/stats', requireAuth, (req, res) => {
 // ============= ADMIN API ENDPOINTS =============
 
 // Get all tables in database
-app.get('/api/admin/tables', requireAuth, (req, res) => {
-  // Check if user is admin
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ 
-      error: 'Permission denied',
-      message: 'Only admins can access this endpoint'
-    });
-  }
+app.get('/api/admin/tables', requireAuth, requirePermission('can_view_admin'), (req, res) => {
+  console.log('🗄️ Admin tables requested by:', req.user.username);
   
   db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", [], (err, rows) => {
     if (err) {
@@ -1684,25 +2157,48 @@ app.post('/api/admin/tables/:tableName', requireAuth, (req, res) => {
   const { tableName } = req.params;
   const data = req.body;
   
-  // Build INSERT query
-  const columns = Object.keys(data).join(', ');
-  const placeholders = Object.keys(data).map(() => '?').join(', ');
-  const values = Object.values(data);
-  
-  const sql = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`;
-  
-  db.run(sql, values, function(err) {
+  // Get table structure to check for auto-generated columns
+  db.all(`PRAGMA table_info(${tableName})`, [], (err, columns) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     
-    // Log audit
-    logAudit('INSERT', tableName, this.lastID, null, JSON.stringify(data), req.user.username, getClientIP(req));
+    // Filter out auto-generated columns (id, created_at, etc.) - let database handle defaults
+    const filteredData = {};
+    Object.keys(data).forEach(key => {
+      // Skip columns that are auto-generated or have defaults
+      const col = columns.find(c => c.name === key);
+      if (col && (col.pk || key === 'created_at' || key === 'id')) {
+        return; // Skip this column
+      }
+      filteredData[key] = data[key];
+    });
     
-    res.json({ 
-      success: true,
-      message: 'Record inserted successfully',
-      id: this.lastID
+    // Check if there's anything to insert
+    if (Object.keys(filteredData).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to insert' });
+    }
+    
+    // Build INSERT query
+    const insertColumns = Object.keys(filteredData).join(', ');
+    const placeholders = Object.keys(filteredData).map(() => '?').join(', ');
+    const values = Object.values(filteredData);
+    
+    const sql = `INSERT INTO ${tableName} (${insertColumns}) VALUES (${placeholders})`;
+    
+    db.run(sql, values, function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Log audit
+      logAudit('INSERT', tableName, this.lastID, null, JSON.stringify(filteredData), req.user.username, getClientIP(req));
+      
+      res.json({ 
+        success: true,
+        message: 'Record inserted successfully',
+        id: this.lastID
+      });
     });
   });
 });
@@ -1900,11 +2396,12 @@ app.put('/api/notification-preferences', requireAuth, (req, res) => {
 });
 
 // Get pending approvals
-app.get('/api/approvals/pending', requireAuth, (req, res) => {
+app.get('/api/approvals/pending', requireAuth, requirePermission('can_view_approvals'), (req, res) => {
   const username = req.user.username;
   
   const sql = `
-    SELECT q.*, qa.level, qa.id as approval_id
+    SELECT q.id, q.query_text, q.user_name, q.purpose, q.schema_name, q.environment, q.priority, q.status as query_status, q.project,
+           qa.level, qa.id as approval_id, qa.created_at as approval_created_at
     FROM queries q
     INNER JOIN query_approvals qa ON q.id = qa.query_id
     WHERE qa.approver_username = ? AND qa.status = 'pending'
@@ -1913,8 +2410,10 @@ app.get('/api/approvals/pending', requireAuth, (req, res) => {
   
   db.all(sql, [username], (err, rows) => {
     if (err) {
+      console.error('Error fetching pending approvals:', err);
       return res.status(500).json({ error: err.message });
     }
+    console.log(`Found ${rows.length} pending approvals for user: ${username}`);
     res.json(rows);
   });
 });
@@ -2056,11 +2555,8 @@ app.get('/api/notifications/unread-count', requireAuth, (req, res) => {
   });
 });
 
-// Get approval dashboard stats (admin only)
-app.get('/api/approvals/dashboard-stats', requireAuth, (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin only' });
-  }
+// Get approval dashboard stats (users with can_view_approvals permission)
+app.get('/api/approvals/dashboard-stats', requireAuth, requirePermission('can_view_approvals'), (req, res) => {
   
   const stats = {};
   

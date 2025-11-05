@@ -7,9 +7,7 @@ let currentQueryData = null;
 let availableSchemas = []; // Available schemas - will be loaded dynamically based on project
 let currentOpenModal = null; // Track currently open modal
 
-// Application state
-let currentUser = null;
-let sessionId = null;
+// Application state (sessionId and currentUser are declared in menu.js)
 let userPermissions = {
     can_edit_others: false,
     can_delete_others: false,
@@ -143,7 +141,7 @@ async function logout() {
 }
 
 // Application initialization
-function initializeApp() {
+async function initializeApp() {
     if (!checkAuth()) {
         return;
     }
@@ -154,13 +152,8 @@ function initializeApp() {
         sidebarUserName.textContent = currentUser.full_name || currentUser.username;
     }
     
-    // Show dashboard link if user has permission
-    const dashboardLink = document.getElementById('dashboardLink');
-    if (dashboardLink && userPermissions.can_view_dashboard) {
-        dashboardLink.style.display = 'flex';
-    }
-    
-    showMainContent();
+    // Set navigation links visibility based on user permissions
+    // Menu is now handled by menu.js
     
     // Check for query parameter in URL FIRST (before checking hash)
     const urlParams = new URLSearchParams(window.location.search);
@@ -175,8 +168,12 @@ function initializeApp() {
         document.getElementById('newQuerySection').style.display = 'none';
         document.getElementById('allQueriesSection').style.display = 'block';
         document.getElementById('queriesListSection').style.display = 'block';
-        document.getElementById('allQueriesLink').classList.add('active');
-        document.getElementById('newQueryLink').classList.remove('active');
+        
+        // Update menu active states if elements exist
+        const allQueriesLink = document.getElementById('allQueriesLink');
+        const newQueryLink = document.getElementById('newQueryLink');
+        if (allQueriesLink) allQueriesLink.classList.add('active');
+        if (newQueryLink) newQueryLink.classList.remove('active');
         
         // Load queries and wait for them to render before highlighting
         loadQueries().then(() => {
@@ -190,16 +187,25 @@ function initializeApp() {
         document.getElementById('newQuerySection').style.display = 'none';
         document.getElementById('allQueriesSection').style.display = 'block';
         document.getElementById('queriesListSection').style.display = 'block';
-        document.getElementById('allQueriesLink').classList.add('active');
-        document.getElementById('newQueryLink').classList.remove('active');
+        
+        // Update menu active states if elements exist
+        const allQueriesLink = document.getElementById('allQueriesLink');
+        const newQueryLink = document.getElementById('newQueryLink');
+        if (allQueriesLink) allQueriesLink.classList.add('active');
+        if (newQueryLink) newQueryLink.classList.remove('active');
+        
         loadQueries();
     } else {
         // Show New Query section by default
         document.getElementById('newQuerySection').style.display = 'block';
         document.getElementById('allQueriesSection').style.display = 'none';
         document.getElementById('queriesListSection').style.display = 'none';
-        document.getElementById('newQueryLink').classList.add('active');
-        document.getElementById('allQueriesLink').classList.remove('active');
+        
+        // Update menu active states if elements exist
+        const allQueriesLink = document.getElementById('allQueriesLink');
+        const newQueryLink = document.getElementById('newQueryLink');
+        if (newQueryLink) newQueryLink.classList.add('active');
+        if (allQueriesLink) allQueriesLink.classList.remove('active');
     }
      
      // Load projects after authentication is complete
@@ -521,6 +527,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
+    debugger; // Debugger 1: This will pause when setupEventListeners is called
+    console.log('setupEventListeners called'); // Debug log
+    
     // Username button - click to open profile
     // Sidebar toggle
     const sidebarToggle = document.getElementById('sidebarToggle');
@@ -533,11 +542,17 @@ function setupEventListeners() {
     
     // Dashboard link
     const dashboardLink = document.getElementById('dashboardLink');
+    console.log('dashboardLink element found:', dashboardLink); // Debug log
     if (dashboardLink) {
+        console.log('Adding event listener to dashboard link'); // Debug log
         dashboardLink.addEventListener('click', (e) => {
+            debugger; // Debugger 2: This will pause when dashboard link is clicked
+            console.log('Dashboard link clicked!'); // Debug log
             e.preventDefault();
             window.location.href = 'dashboard.html';
         });
+    } else {
+        console.log('dashboardLink element not found!'); // Debug log
     }
     
     // Logout link
@@ -550,34 +565,9 @@ function setupEventListeners() {
     }
     
     // Navigation between New Query and All Queries sections
-    const newQueryLink = document.getElementById('newQueryLink');
-    const allQueriesLink = document.getElementById('allQueriesLink');
+    // Note: Menu links are handled by menu.js after menu generation
+    // We only handle the New Query button here
     const newQueryBtn = document.getElementById('newQueryBtn');
-    
-    if (newQueryLink) {
-        newQueryLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.location.hash = ''; // Clear hash
-            document.getElementById('newQuerySection').style.display = 'block';
-            document.getElementById('allQueriesSection').style.display = 'none';
-            document.getElementById('queriesListSection').style.display = 'none'; // Hide queries list
-            document.getElementById('newQueryLink').classList.add('active');
-            document.getElementById('allQueriesLink').classList.remove('active');
-        });
-    }
-    
-    if (allQueriesLink) {
-        allQueriesLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.location.hash = '#all'; // Set hash
-            document.getElementById('newQuerySection').style.display = 'none';
-            document.getElementById('allQueriesSection').style.display = 'block';
-            document.getElementById('queriesListSection').style.display = 'block'; // Show queries list
-            document.getElementById('allQueriesLink').classList.add('active');
-            document.getElementById('newQueryLink').classList.remove('active');
-            loadQueries(); // Load queries when viewing all queries
-        });
-    }
     
     if (newQueryBtn) {
         newQueryBtn.addEventListener('click', function(e) {
@@ -585,8 +575,10 @@ function setupEventListeners() {
             document.getElementById('newQuerySection').style.display = 'block';
             document.getElementById('allQueriesSection').style.display = 'none';
             document.getElementById('queriesListSection').style.display = 'none'; // Hide queries list
-            document.getElementById('newQueryLink').classList.add('active');
-            document.getElementById('allQueriesLink').classList.remove('active');
+            const newLink = document.getElementById('newQueryLink');
+            const allLink = document.getElementById('allQueriesLink');
+            if (newLink) newLink.classList.add('active');
+            if (allLink) allLink.classList.remove('active');
             // Scroll to top of form
             document.getElementById('queryForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
@@ -711,13 +703,18 @@ function handleEditSchemaChange() {
 
 // Load projects and populate dropdown
 async function loadProjects() {
+    console.log('[DEBUG] loadProjects called');
     try {
         const response = await fetch('/api/projects', {
             headers: { 'x-session-id': sessionId }
         });
         
+        console.log('[DEBUG] loadProjects response status:', response.status);
+        
         if (response.ok) {
             const projects = await response.json();
+            console.log('[DEBUG] loadProjects received', projects.length, 'projects:', projects);
+            
             const projectDropdown = document.getElementById('projectName');
             const editProjectDropdown = document.getElementById('editProjectName');
             
@@ -729,6 +726,9 @@ async function loadProjects() {
                     option.textContent = project.name;
                     projectDropdown.appendChild(option);
                 });
+                console.log('[DEBUG] Added', projects.length, 'projects to dropdown');
+            } else {
+                console.error('[ERROR] projectName dropdown not found');
             }
             
             if (editProjectDropdown) {
@@ -740,9 +740,11 @@ async function loadProjects() {
                     editProjectDropdown.appendChild(option);
                 });
             }
+        } else {
+            console.error('[ERROR] loadProjects failed with status:', response.status);
         }
     } catch (error) {
-        console.error('Error loading projects:', error);
+        console.error('[ERROR] Error loading projects:', error);
     }
 }
 
@@ -931,8 +933,10 @@ async function handleFormSubmit(e) {
             document.getElementById('newQuerySection').style.display = 'none';
             document.getElementById('allQueriesSection').style.display = 'block';
             document.getElementById('queriesListSection').style.display = 'block'; // Show queries list
-            document.getElementById('allQueriesLink').classList.add('active');
-            document.getElementById('newQueryLink').classList.remove('active');
+            const allLink = document.getElementById('allQueriesLink');
+            const newLink = document.getElementById('newQueryLink');
+            if (allLink) allLink.classList.add('active');
+            if (newLink) newLink.classList.remove('active');
             loadQueries(); // Reload the list
         } else {
             const error = await response.json();
@@ -1034,16 +1038,11 @@ function createQueryHTML(query) {
                     <span class="version-badge">v${query.version || 1}</span>
                 </h3>
                 <div class="query-actions">
-                    <select class="status-dropdown" data-query-id="${query.id}" data-current-status="${query.status || 'Pending'}">
-                        <option value="">Update Status...</option>
-                        <option value="Pending" ${query.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                        <option value="In Progress" ${query.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                        <option value="Completed" ${query.status === 'Completed' ? 'selected' : ''}>Completed</option>
-                        <option value="Rejected" ${query.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
-                        <option value="On Hold" ${query.status === 'On Hold' ? 'selected' : ''}>On Hold</option>
-                    </select>
                     <button class="btn btn-sm btn-info view-versions-btn" data-id="${query.id}">
                         <i class="fas fa-history"></i> History
+                    </button>
+                    <button class="btn btn-sm btn-info view-approval-btn" data-id="${query.id}">
+                        <i class="fas fa-check-circle"></i> Approval Status
                     </button>
                     ${canEdit ? `
                     <button class="btn btn-sm btn-warning edit-btn" data-id="${query.id}">
@@ -1181,19 +1180,11 @@ function setupQueryEventListeners() {
         });
     });
     
-    // Status dropdown changes
-    document.querySelectorAll('.status-dropdown').forEach(dropdown => {
-        dropdown.addEventListener('change', async function() {
-            const queryId = this.getAttribute('data-query-id');
-            const newStatus = this.value;
-            const currentStatus = this.getAttribute('data-current-status');
-            
-            if (!newStatus || newStatus === currentStatus) {
-                this.value = currentStatus;
-                return;
-            }
-            
-            await updateQueryStatus(queryId, newStatus);
+    // View approval status buttons
+    document.querySelectorAll('.view-approval-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const queryId = this.getAttribute('data-id');
+            showApprovalTracking(queryId);
         });
     });
     
@@ -1407,6 +1398,133 @@ function displayVersionHistory(versions) {
 function closeVersionModal() {
     versionModal.style.display = 'none';
     currentOpenModal = null;
+}
+
+// Show approval tracking panel
+async function showApprovalTracking(queryId) {
+    const panel = document.getElementById('approvalTrackingPanel');
+    const panelContent = document.getElementById('approvalPanelContent');
+    
+    // Show loading state
+    panelContent.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #58a6ff;"></i>
+            <p>Loading approval status...</p>
+        </div>
+    `;
+    
+    // Slide in the panel
+    panel.classList.add('active');
+    
+    try {
+        // Load approvals
+        const approvalsResponse = await fetch(`/api/queries/${queryId}/approvals`, {
+            headers: { 'x-session-id': sessionId }
+        });
+        
+        if (!approvalsResponse.ok) throw new Error('Failed to load approvals');
+        
+        const approvals = await approvalsResponse.json();
+        
+        // Load query details
+        const queryResponse = await fetch(`/api/queries/${queryId}`, {
+            headers: { 'x-session-id': sessionId }
+        });
+        
+        if (!queryResponse.ok) throw new Error('Failed to load query details');
+        
+        const query = await queryResponse.json();
+        
+        // Display approval tracking
+        displayApprovalTracking(query, approvals);
+        
+    } catch (error) {
+        console.error('Error loading approval tracking:', error);
+        panelContent.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #f85149;"></i>
+                <p style="color: #f85149;">Error loading approval status</p>
+            </div>
+        `;
+    }
+}
+
+// Display approval tracking
+function displayApprovalTracking(query, approvals) {
+    const panelContent = document.getElementById('approvalPanelContent');
+    
+    let approvalHTML = `
+        <div style="margin-bottom: 20px;">
+            <h4 style="color: #c9d1d9; margin-bottom: 10px;">
+                <i class="fas fa-database"></i> Query #${query.id}
+            </h4>
+            <div style="padding: 15px; background: #0d1117; border-radius: 8px; border: 1px solid #30363d;">
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #8b949e;">Purpose:</strong>
+                    <p style="color: #c9d1d9; margin: 5px 0 0 0;">${escapeHTML(query.purpose)}</p>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #8b949e;">Project:</strong>
+                    <span style="color: #c9d1d9;">${query.project || 'N/A'}</span>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #8b949e;">Status:</strong>
+                    <span class="status-badge status-${(query.status || 'Pending').toLowerCase().replace(' ', '-')}">${query.status || 'Pending'}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (approvals.length === 0) {
+        approvalHTML += `
+            <div style="text-align: center; padding: 30px;">
+                <i class="fas fa-info-circle" style="font-size: 2rem; color: #8b949e;"></i>
+                <p style="color: #8b949e; margin-top: 15px;">No approval records found for this query.</p>
+            </div>
+        `;
+    } else {
+        approvalHTML += '<div class="approval-timeline">';
+        
+        approvals.forEach(approval => {
+            const statusClass = approval.status === 'approved' ? 'approved' : approval.status === 'rejected' ? 'rejected' : 'pending';
+            const isCurrent = approval.status === 'pending';
+            const isCompleted = approval.status !== 'pending';
+            
+            approvalHTML += `
+                <div class="timeline-item ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <h4>Level ${approval.level} Approval</h4>
+                        <span class="status-badge status-${statusClass}">${approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}</span>
+                        <div class="timeline-info">
+                            <div><strong>Approver:</strong> ${approval.approver_username || 'Pending Assignment'}</div>
+                            ${approval.approved_at ? `<div><strong>Date:</strong> ${new Date(approval.approved_at).toLocaleString()}</div>` : '<div><strong>Status:</strong> Pending</div>'}
+                            ${approval.comments ? `<div class="timeline-comments"><strong>Comments:</strong><br>${escapeHTML(approval.comments)}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        approvalHTML += '</div>';
+    }
+    
+    panelContent.innerHTML = approvalHTML;
+    
+    // Set up close buttons
+    document.getElementById('closeApprovalPanel').onclick = function() {
+        document.getElementById('approvalTrackingPanel').classList.remove('active');
+    };
+    document.getElementById('closeApprovalPanelFooter').onclick = function() {
+        document.getElementById('approvalTrackingPanel').classList.remove('active');
+    };
+    
+    // Close on outside click
+    document.getElementById('approvalTrackingPanel').onclick = function(e) {
+        if (e.target === this) {
+            this.classList.remove('active');
+        }
+    };
 }
 
 // Search functionality
@@ -2145,18 +2263,26 @@ function generateEmailBody(queryId, queryText, userName, purpose, schema, enviro
     });
     
     // Format the query creator's name (for "Submitted by" field)
-    const formattedUserName = userName.split(/[._]/).map(word => 
+    // Add null/undefined check before calling split
+    const formattedUserName = (userName || 'Unknown User').split(/[._]/).map(word => 
         word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
     
     // Format the session user's name (for signature)
-    const sessionUserName = currentUser.full_name.split(/[._]/).map(word => 
+    // Add null/undefined check for currentUser and full_name
+    const sessionUserName = (currentUser && currentUser.full_name ? currentUser.full_name : 'User').split(/[._]/).map(word => 
         word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
     
     // Get the current server URL
     const serverUrl = window.location.origin;
     const queryLink = `${serverUrl}/?query=${queryId}`;
+    
+    // Ensure all required fields have fallback values
+    const safePurpose = purpose || 'Query Request';
+    const safeSchema = schema || 'Unknown Schema';
+    const safeEnvironment = environment || 'Unknown Environment';
+    const safeQueryText = queryText || 'No query text provided';
     
     return `Dear Infrastructure DB Team,
 
@@ -2169,16 +2295,16 @@ Kindly assist with the following database query request:
 Query ID         : ${queryId}
 Submitted by     : ${formattedUserName}
 Date             : ${timestamp}
-Schema           : ${schema}
-Environment      : ${environment}
-Purpose          : ${purpose}
+Schema           : ${safeSchema}
+Environment      : ${safeEnvironment}
+Purpose          : ${safePurpose}
 ===============================================================================
 
 View Query: ${queryLink}
 
 SQL QUERY:
 -------------------------------------------------------------------------------
-${queryText}
+${safeQueryText}
 -------------------------------------------------------------------------------
 
 Please review and execute this query at your earliest convenience.

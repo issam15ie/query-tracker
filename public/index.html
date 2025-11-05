@@ -22,26 +22,7 @@
                 <span id="sidebarUserName">Loading...</span>
             </div>
             <nav class="sidebar-nav">
-                <a href="#" class="sidebar-link active" id="newQueryLink">
-                    <i class="fas fa-plus-circle"></i>
-                    <span>New Query</span>
-                </a>
-                <a href="#" class="sidebar-link" id="allQueriesLink">
-                    <i class="fas fa-list"></i>
-                    <span>All Queries</span>
-                </a>
-                <a href="#" id="dashboardLink" class="sidebar-link" style="display: none;">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="approvals.html" class="sidebar-link">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Approvals</span>
-                </a>
-                <a href="profile.html" class="sidebar-link">
-                    <i class="fas fa-user-cog"></i>
-                    <span>Profile Settings</span>
-                </a>
+                <!-- Menu items will be generated dynamically by menu.js -->
                 <a href="#" id="logoutLink" class="sidebar-link logout-link">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
@@ -350,6 +331,28 @@
         </div>
     </div>
 
+    <!-- Approval Tracking Panel (Centered modal) -->
+    <div id="approvalTrackingPanel" class="approval-tracking-panel">
+        <div class="approval-panel-wrapper">
+            <div class="approval-panel-header">
+                <h3><i class="fas fa-check-circle"></i> Approval Tracking</h3>
+                <button class="close-approval-panel" id="closeApprovalPanel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="approval-panel-content" id="approvalPanelContent">
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #58a6ff;"></i>
+                    <p>Loading approval status...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="closeApprovalPanelFooter">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="menu.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

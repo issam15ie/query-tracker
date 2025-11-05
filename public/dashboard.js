@@ -1,15 +1,14 @@
 // Dashboard JavaScript
+// (sessionId and currentUser are declared in menu.js)
 
-let sessionId = null;
-let currentUser = null;
 
 // Check authentication on page load
-document.addEventListener('DOMContentLoaded', () => {
-    checkAuth();
+document.addEventListener('DOMContentLoaded', async () => {
+    await checkAuth();
     setupSidebar();
 });
 
-function checkAuth() {
+async function checkAuth() {
     sessionId = localStorage.getItem('sessionId');
     const userInfo = localStorage.getItem('user'); // Changed from 'userInfo' to 'user'
     
@@ -28,6 +27,9 @@ function checkAuth() {
         if (sidebarUserName) {
             sidebarUserName.textContent = currentUser.full_name || currentUser.username;
         }
+        
+        // Set navigation links visibility based on user permissions
+        // Menu is now handled by menu.js
         
         loadDashboard();
     } catch (e) {
@@ -70,7 +72,8 @@ async function loadDashboard() {
         const response = await fetch('/api/dashboard/stats', {
             headers: {
                 'x-session-id': sessionId
-            }
+            },
+            cache: 'no-cache' // Force fresh data
         });
         
         if (response.status === 403) {
@@ -103,6 +106,27 @@ async function loadDashboard() {
             'Failed to load dashboard data. Please try again later.';
     }
 }
+
+// Refresh dashboard when page becomes visible again
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        // Page is now visible, refresh dashboard data
+        const contentEl = document.getElementById('dashboardContent');
+        if (contentEl && contentEl.style.display !== 'none') {
+            console.log('Page visible, refreshing dashboard...');
+            loadDashboard();
+        }
+    }
+});
+
+// Auto-refresh dashboard every 30 seconds
+setInterval(function() {
+    const contentEl = document.getElementById('dashboardContent');
+    if (contentEl && contentEl.style.display !== 'none' && !document.hidden) {
+        console.log('Auto-refreshing dashboard...');
+        loadDashboard();
+    }
+}, 30000); // 30 seconds
 
 function populateStats(stats) {
     // Total queries

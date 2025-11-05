@@ -1,6 +1,4 @@
-// Check authentication
-let currentUser = null;
-let sessionId = null;
+// Check authentication (sessionId and currentUser are declared in menu.js)
 
 function checkAuth() {
     sessionId = localStorage.getItem('sessionId');
